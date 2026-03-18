@@ -1,0 +1,5 @@
+[project]
+id = "uniswap-agentic-trader"
+profile = "standard"
+budget = "$20/day"
+verify = "npm test"
