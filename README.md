@@ -8,13 +8,38 @@ Built for the **Agentic Finance (Best Uniswap API Integration)** hackathon track
 
 - **Live Uniswap Trading API integration** — full 3-step swap flow (check_approval → quote → swap/order)
 - **Indicative quotes** for low-cost price scanning across token pairs
+- **Multi-pool routing** — aggregates liquidity across Uniswap V2, V3, and V4 pools for optimal execution
 - **Permit2 support** — handles EIP-712 typed data signing for gasless approvals
 - **UniswapX gasless orders** — submits Dutch auction orders when available (DUTCH_V2/V3, PRIORITY)
 - **AI reasoning** — evaluates opportunities and explains trade decisions
 - **Trade journal** — every trade logged to `logs/trades.jsonl` with tx hashes
+- **On-chain demo** — reads real Uniswap V3 pool state from Base mainnet (`npm run demo`)
 - **Configurable** — supports WETH, USDC, USDT, DAI on Base (chain ID 8453)
 
 ## Architecture
+
+The agent follows a four-stage pipeline:
+
+```
+Market Intelligence ──▶ Uniswap Trading API ──▶ Swap Execution ──▶ Portfolio Tracking
+```
+
+**Market Intelligence** — The scanner polls indicative quotes across all configured
+token pairs to build a real-time price matrix, then detects mispricing opportunities
+that exceed a configurable threshold.
+
+**Uniswap Trading API** — A unified swap interface that abstracts away individual
+pool versions. The API handles multi-pool routing (V2/V3/V4), selects optimal
+split routes, and returns ready-to-sign transaction calldata. A single `/quote`
+call evaluates every available liquidity source and returns the best price.
+
+**Swap Execution** — The agent checks Permit2 approvals, signs EIP-712 typed
+data when needed, and broadcasts the transaction through the Base RPC. For
+UniswapX-eligible trades, it submits gasless Dutch auction orders instead.
+
+**Portfolio Tracking** — Every decision, quote payload, tx hash, gas cost, and
+result is appended to an immutable trade journal (`logs/trades.jsonl`) for
+auditability.
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -31,6 +56,7 @@ Built for the **Agentic Finance (Best Uniswap API Integration)** hackathon track
                     ▼
 ┌──────────────────────────────────────────────┐
 │        Uniswap Trading API                   │
+│  Unified swap interface — multi-pool routing │
 │  /indicative_quote  /check_approval          │
 │  /quote  /swap  /order  /swaps  /orders      │
 └───────────────────┬──────────────────────────┘
@@ -48,6 +74,19 @@ Built for the **Agentic Finance (Best Uniswap API Integration)** hackathon track
 2. Sign up or log in with Google, GitHub, or email
 3. Create a new API key in the dashboard
 4. Copy the key — you'll set it as `UNISWAP_API_KEY`
+
+## Quick Demo (no API key required)
+
+The demo script reads real Uniswap V3 pool state directly from Base mainnet
+using a public RPC — no wallet or API key needed:
+
+```bash
+npm run demo
+```
+
+This connects to the WETH/USDC pool, reads the current tick, liquidity, and
+fee tier, converts the tick to a human-readable price, and writes the result
+to `proof/demo.json`.
 
 ## Setup
 
@@ -67,6 +106,17 @@ cp .env.example .env
 npm run build
 ```
 
+### API Key Setup
+
+1. Visit the [Uniswap Developer Portal](https://developers.uniswap.org/dashboard/welcome)
+2. Sign up or log in with Google, GitHub, or email
+3. Create a new API key in the dashboard
+4. Copy the key and set it in your `.env` file as `UNISWAP_API_KEY`
+
+The Trading API key is required for the full agent loop (price scanning,
+quoting, and swap execution). The `npm run demo` command works without it
+since it reads pool state directly from the chain.
+
 ### Environment Variables
 
 | Variable | Description |
@@ -78,6 +128,13 @@ npm run build
 > ⚠️ **Never commit your `.env` file.** The `.gitignore` already excludes it.
 
 ## Usage
+
+### On-Chain Demo (read-only)
+
+```bash
+npm run demo
+# Reads WETH/USDC pool state from Base mainnet → proof/demo.json
+```
 
 ### Single Trading Cycle
 

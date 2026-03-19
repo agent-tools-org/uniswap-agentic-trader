@@ -8,6 +8,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "scan": "ts-node src/scan.ts",
+    "demo": "ts-node scripts/demo.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
