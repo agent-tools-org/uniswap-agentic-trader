@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-03-19T01:03:26.419Z",
+  "pool": "0xd0b53D9277642d899DF5C87A3966A349A798F224",
+  "chain": "Base",
+  "chainId": 8453,
+  "token0": "WETH",
+  "token1": "USDC",
+  "sqrtPriceX96": "3713059721233978709817370",
+  "tick": -199375,
+  "price": "2196.274785 USDC/WETH",
+  "liquidity": "990072563369804907",
+  "feeTier": 500
+}
