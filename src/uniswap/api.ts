@@ -166,15 +166,22 @@ export async function getIndicativeQuote(
 
 /**
  * Convert an executable quote into unsigned transaction calldata (classic routing).
+ * @param amountOutMinimum Minimum acceptable output (slippage protection).
+ *        Defaults to 99% of the quoted output if not provided.
  */
 export async function executeSwap(
   quote: QuoteResponse,
   signature?: Hex,
+  amountOutMinimum?: bigint,
 ): Promise<SwapResponse> {
   const payload: Record<string, unknown> = {
     ...quote.quote,
     routing: quote.routing,
   };
+  // Slippage protection: enforce a non-zero amountOutMinimum
+  const quotedOutput = BigInt(quote.quote.output.amount);
+  const minOut = amountOutMinimum ?? (quotedOutput * 99n / 100n);
+  payload.amountOutMinimum = minOut.toString();
   if (signature && quote.permitData) {
     payload.signature = signature;
     payload.permitData = quote.permitData;

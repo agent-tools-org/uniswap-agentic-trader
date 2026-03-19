@@ -40,6 +40,10 @@ export const UNISWAP_API_BASE = "https://trade-api.gateway.uniswap.org/v1";
 export const PERMIT2_ADDRESS: Address =
   "0x000000000022D473030F116dDEE9F6B43aC78BA3";
 
+// Universal Router on Base
+export const UNISWAP_ROUTER: Address =
+  "0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD";
+
 // ---------------------------------------------------------------------------
 // Token addresses on Base
 // ---------------------------------------------------------------------------

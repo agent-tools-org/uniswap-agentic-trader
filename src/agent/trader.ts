@@ -3,6 +3,7 @@ import {
   createPublicClient,
   http,
   formatUnits,
+  erc20Abi,
   type Hex,
   type Address,
   type PublicClient,
@@ -15,6 +16,7 @@ import {
   RPC_URL,
   CHAIN,
   CHAIN_ID,
+  UNISWAP_ROUTER,
   TOKEN_LIST,
   type TokenInfo,
 } from "../config";
@@ -246,6 +248,59 @@ export async function runTradingCycle(): Promise<void> {
     }
   }
 
+  // ---- Step 5b: Ensure ERC20 allowance for the router ----
+  console.log("[trader] Checking ERC20 allowance for router...");
+  try {
+    const allowance = await publicClient.readContract({
+      address: opp.tokenIn.address,
+      abi: erc20Abi,
+      functionName: "allowance",
+      args: [account.address, UNISWAP_ROUTER],
+    });
+    const amountInBn = BigInt(opp.amountIn);
+    if (allowance < amountInBn) {
+      console.log("[trader] Insufficient allowance — approving router...");
+      const approveTx = await walletClient.writeContract({
+        address: opp.tokenIn.address,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [UNISWAP_ROUTER, amountInBn],
+        chain: CHAIN,
+        account,
+      });
+      console.log(`[trader] Approve tx: ${approveTx}`);
+      await publicClient.waitForTransactionReceipt({ hash: approveTx });
+      console.log("[trader] Router approval confirmed.");
+    } else {
+      console.log("[trader] Router allowance sufficient.");
+    }
+  } catch (err) {
+    console.error("[trader] ERC20 approval check failed:", err);
+  }
+
+  // ---- Step 5c: Validate slippage protection ----
+  const expectedOutput = BigInt(quote.quote.output.amount);
+  const amountOutMinimum = expectedOutput * 99n / 100n;
+  if (expectedOutput === 0n) {
+    console.error("[trader] Quote returned zero output — aborting.");
+    logTrade({
+      timestamp: new Date().toISOString(),
+      pair: `${opp.tokenIn.symbol}/${opp.tokenOut.symbol}`,
+      direction: "SWAP",
+      amountIn: opp.amountIn,
+      tokenIn: opp.tokenIn.symbol,
+      tokenOut: opp.tokenOut.symbol,
+      routing: quote.routing,
+      quoteOutput: quote.quote.output.amount,
+      status: "FAILED",
+      reason: "Quote returned zero output",
+    });
+    return;
+  }
+  console.log(
+    `[trader] Slippage protection: minOutput = ${formatUnits(amountOutMinimum, opp.tokenOut.decimals)} ${opp.tokenOut.symbol}`,
+  );
+
   // ---- Step 6: Execute swap or submit UniswapX order ----
   const isUniswapX = ["DUTCH_V2", "DUTCH_V3", "PRIORITY"].includes(
     quote.routing,
@@ -291,7 +346,7 @@ export async function runTradingCycle(): Promise<void> {
     // ---- Classic swap ----
     console.log("[trader] Executing classic swap...");
     try {
-      const swapResp = await executeSwap(quote, signature);
+      const swapResp = await executeSwap(quote, signature, amountOutMinimum);
       const swap = swapResp.swap;
 
       console.log("[trader] Broadcasting swap transaction...");

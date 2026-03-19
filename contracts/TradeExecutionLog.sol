@@ -16,6 +16,7 @@ contract TradeExecutionLog {
 
     Trade[] public trades;
     mapping(address => uint256[]) private agentTrades;
+    mapping(address => uint256) public agentTradeCount;
 
     event TradeExecuted(
         address indexed agent,
@@ -47,6 +48,7 @@ contract TradeExecutionLog {
             })
         );
         agentTrades[msg.sender].push(index);
+        agentTradeCount[msg.sender]++;
 
         emit TradeExecuted(
             msg.sender,
@@ -74,5 +76,27 @@ contract TradeExecutionLog {
         address agent
     ) external view returns (uint256[] memory) {
         return agentTrades[agent];
+    }
+
+    /// @notice Get a page of trade indices for a given agent (bounded read)
+    function getTradesByAgentPaginated(
+        address agent,
+        uint256 offset,
+        uint256 limit
+    ) external view returns (uint256[] memory) {
+        uint256 total = agentTradeCount[agent];
+        if (offset >= total) {
+            return new uint256[](0);
+        }
+        uint256 end = offset + limit;
+        if (end > total) {
+            end = total;
+        }
+        uint256 size = end - offset;
+        uint256[] memory result = new uint256[](size);
+        for (uint256 i = 0; i < size; i++) {
+            result[i] = agentTrades[agent][offset + i];
+        }
+        return result;
     }
 }

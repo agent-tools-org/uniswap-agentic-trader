@@ -124,12 +124,14 @@ export function detectOpportunities(
   );
 
   for (const snap of stablePairs) {
-    // For stablecoin ↔ stablecoin, fair price is 1.0
-    const deviationBps = Math.abs(snap.price - 1) * 10_000;
+    // For stablecoin ↔ stablecoin, only flag when output > input (price > 1.0).
+    // A price below 1.0 means a loss-making swap — skip it.
+    if (snap.price <= 1.0) continue;
+    const deviationBps = (snap.price - 1) * 10_000;
     if (deviationBps > 10) {
-      // >0.1% deviation
+      // >0.1% positive deviation
       const profitUsd =
-        Math.abs(snap.price - 1) * toHuman(snap.amountIn, snap.tokenIn.decimals) -
+        (snap.price - 1) * toHuman(snap.amountIn, snap.tokenIn.decimals) -
         ESTIMATED_GAS_COST_USD;
       opportunities.push({
         tokenIn: snap.tokenIn,
