@@ -10,6 +10,7 @@
     "scan": "ts-node src/scan.ts",
     "demo": "ts-node scripts/demo.ts",
     "typecheck": "tsc --noEmit",
+    "compile": "ts-node src/compile.ts",
     "test": "vitest run"
   },
   "keywords": [
@@ -23,6 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.5",
+    "solc": "^0.8.34",
     "viem": "^2.21.0"
   },
   "devDependencies": {
