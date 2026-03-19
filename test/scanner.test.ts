@@ -65,6 +65,24 @@ describe("detectOpportunities", () => {
     expect(opps[0].reason).toContain("deviates");
   });
 
+  it("does not flag loss-making stablecoin swaps even if snap.price suggests profit", () => {
+    // amountOut is strictly less than amountIn (same decimals), but the snapshot
+    // price is set to > 1.0. Detection must rely on expectedOut > input,
+    // not floating price thresholds.
+    const snapshots: PriceSnapshot[] = [
+      {
+        tokenIn: TOKENS.USDC,
+        tokenOut: TOKENS.USDT,
+        amountIn: "1000000", // 1 USDC
+        amountOut: "999999", // < 1 USDT, loss-making by 1e-6
+        price: 1.005, // misleading
+        timestamp: now,
+      },
+    ];
+    const opps = detectOpportunities(snapshots);
+    expect(opps).toHaveLength(0);
+  });
+
   it("ignores stablecoin deviation at or below 10 bps", () => {
     const snapshots: PriceSnapshot[] = [
       {

@@ -124,15 +124,33 @@ export function detectOpportunities(
   );
 
   for (const snap of stablePairs) {
-    // For stablecoin ↔ stablecoin, only flag when output > input (price > 1.0).
-    // A price below 1.0 means a loss-making swap — skip it.
-    if (snap.price <= 1.0) continue;
-    const deviationBps = (snap.price - 1) * 10_000;
+    // Stablecoin->stablecoin swaps: only flag if expected output is strictly
+    // greater than input (decimal-adjusted). This avoids misclassifying
+    // loss-making swaps as profitable due to floating rounding.
+    const amountIn = BigInt(snap.amountIn);
+    const amountOut = BigInt(snap.amountOut);
+    if (amountIn === 0n || amountOut === 0n) continue;
+
+    // Compare human amounts without floating point:
+    // amountOut / 10^outDec > amountIn / 10^inDec
+    // <=> amountOut * 10^inDec > amountIn * 10^outDec
+    const inDecPow = 10n ** BigInt(snap.tokenIn.decimals);
+    const outDecPow = 10n ** BigInt(snap.tokenOut.decimals);
+    const left = amountOut * inDecPow;
+    const right = amountIn * outDecPow;
+    if (left <= right) continue; // would be loss-making
+
+    // Deviation in bps, derived from the same integer comparison.
+    // We use floor division here; the strict `left > right` gate ensures it
+    // is still positive.
+    const priceRatioBps = (left * 10_000n) / right; // floor((out/in) * 10000)
+    const deviationBpsInt = priceRatioBps - 10_000n;
+    const deviationBps = Number(deviationBpsInt);
+
     if (deviationBps > 10) {
       // >0.1% positive deviation
-      const profitUsd =
-        (snap.price - 1) * toHuman(snap.amountIn, snap.tokenIn.decimals) -
-        ESTIMATED_GAS_COST_USD;
+      const deviation = deviationBpsInt === 0n ? 0 : Number(deviationBpsInt) / 10_000;
+      const profitUsd = deviation * toHuman(snap.amountIn, snap.tokenIn.decimals) - ESTIMATED_GAS_COST_USD;
       opportunities.push({
         tokenIn: snap.tokenIn,
         tokenOut: snap.tokenOut,
